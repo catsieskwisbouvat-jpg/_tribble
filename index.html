@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tribble Accounts</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --input-bg: #0f172a;
+      --border-color: #334155;
+      --error-color: #ef4444;
+      --success-color: #22c55e;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 24px;
+      font-size: 24px;
+      letter-spacing: 0.5px;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .tab {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      padding: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: all 0.3s ease;
+    }
+
+    .tab.active {
+      opacity: 1;
+      border-bottom: 2px solid var(--primary);
+      margin-bottom: -2px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-color);
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .message {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .error {
+      color: var(--error-color);
+    }
+
+    .success {
+      color: var(--success-color);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .welcome-box {
+      text-align: center;
+    }
+
+    .logout-btn {
+      background-color: var(--error-color);
+      margin-top: 20px;
+    }
+
+    .logout-btn:hover {
+      background-color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card" id="auth-card">
+      <h1 id="page-title">Tribble Accounts</h1>
+      
+      <!-- Tabs om te wisselen -->
+      <div class="tabs" id="auth-tabs">
+        <button class="tab active" onclick="switchTab('login')">Inloggen</button>
+        <button class="tab" onclick="switchTab('register')">Account Maken</button>
+      </div>
+
+      <!-- Inlog Formulier -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-username">Gebruikersnaam</label>
+          <input type="text" id="login-username" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Wachtwoord</label>
+          <input type="password" id="login-password" required>
+        </div>
+        <button type="submit" class="btn">Inloggen</button>
+      </form>
+
+      <!-- Registreer Formulier -->
+      <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="reg-username">Gebruikersnaam</label>
+          <input type="text" id="reg-username" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Wachtwoord</label>
+          <input type="password" id="reg-password" required>
+        </div>
+        <button type="submit" class="btn">Account Maken</button>
+      </form>
+
+      <div id="message" class="message"></div>
+    </div>
+
+    <!-- Dashboard / Welkom scherm als je ingelogd bent -->
+    <div class="card hidden" id="welcome-card">
+      <div class="welcome-box">
+        <h1>Welkom, <span id="user-display-name"></span>!</h1>
+        <p>Je bent succesvol ingelogd op Tribble Accounts.</p>
+        <button class="btn logout-btn" onclick="handleLogout()">Uitloggen</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Functie om te wisselen tussen Inloggen en Registreren tabbladen
+    function switchTab(tab) {
+      const loginForm = document.getElementById('login-form');
+      const registerForm = document.getElementById('register-form');
+      const tabs = document.querySelectorAll('.tab');
+      const messageDiv = document.getElementById('message');
+      
+      messageDiv.textContent = '';
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tabs[0].classList.add('active');
+        tabs[1].classList.remove('active');
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabs[0].classList.remove('active');
+        tabs[1].classList.add('active');
+      }
+    }
+
+    // Hulpfunctie om gebruikers op te halen als JSON-array
+    function getUsers() {
+      const usersJson = localStorage.getItem('tribble_users');
+      return usersJson ? JSON.parse(usersJson) : [];
+    }
+
+    // Hulpfunctie om gebruikers op te slaan als JSON
+    function saveUsers(users) {
+      localStorage.setItem('tribble_users', JSON.stringify(users, null, 2));
+    }
+
+    // Account maken
+    function handleRegister(event) {
+      event.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const messageDiv = document.getElementById('message');
+
+      let users = getUsers();
+
+      // Controleren of de gebruikersnaam al bestaat
+      const existingUser = users.find(u => u.username === username);
+      if (existingUser) {
+        messageDiv.textContent = 'Deze gebruikersnaam bestaat al!';
+        messageDiv.className = 'message error';
+        return;
+      }
+
+      // Nieuwe gebruiker toevoegen aan de lijst
+      users.push({ username, password });
+      saveUsers(users);
+
+      messageDiv.textContent = 'Account succesvol aangemaakt! Je kunt nu inloggen.';
+      messageDiv.className = 'message success';
+      
+      // Formulier leegmaken
+      document.getElementById('register-form').reset();
+      
+      // Na 1.5 seconde automatisch naar de inlogtab gaan
+      setTimeout(() => switchTab('login'), 1500);
+    }
+
+    // Inloggen
+    function handleLogin(event) {
+      event.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      const messageDiv = document.getElementById('message');
+
+      let users = getUsers();
+
+      // Zoeken naar de gebruiker
+      const user = users.find(u => u.username === username && u.password === password);
+
+      if (user) {
+        // Inloggen gelukt
+        localStorage.setItem('tribble_current_user', username);
+        showWelcomeScreen(username);
+      } else {
+        messageDiv.textContent = 'Ongeldige gebruikersnaam of wachtwoord.';
+        messageDiv.className = 'message error';
+      }
+    }
+
+    // Welkomstscherm tonen
+    function showWelcomeScreen(username) {
+      document.getElementById('auth-card').classList.add('hidden');
+      document.getElementById('welcome-card').classList.remove('hidden');
+      document.getElementById('user-display-name').textContent = username;
+    }
+
+    // Uitloggen
+    function handleLogout() {
+      localStorage.removeItem('tribble_current_user');
+      document.getElementById('welcome-card').classList.add('hidden');
+      document.getElementById('auth-card').classList.remove('hidden');
+      document.getElementById('login-form').reset();
+      document.getElementById('message').textContent = '';
+      switchTab('login');
+    }
+
+    // Controleren of er al iemand is ingelogd bij het laden van de pagina
+    window.onload = function() {
+      const currentUser = localStorage.getItem('tribble_current_user');
+      if (currentUser) {
+        showWelcomeScreen(currentUser);
+      }
+    }
+  </script>
+</body>
+</html>
