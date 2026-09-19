@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tribble Accounts</title>
+  <!-- Three.js voor het 3D Logo -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -27,27 +29,29 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     .container {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       padding: 20px;
+      z-index: 10;
     }
 
     .card {
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 30px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.4);
     }
 
     h1 {
       text-align: center;
       margin-top: 0;
       margin-bottom: 24px;
-      font-size: 24px;
+      font-size: 26px;
       letter-spacing: 0.5px;
     }
 
@@ -145,6 +149,17 @@
       text-align: center;
     }
 
+    /* Container voor het 3D Logo */
+    #logo-container {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto 15px auto;
+      border-radius: 50%;
+      overflow: hidden;
+      background: radial-gradient(circle, #334155 0%, #0f172a 100%);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+
     .logout-btn {
       background-color: var(--error-color);
       margin-top: 20px;
@@ -158,10 +173,10 @@
 <body>
 
   <div class="container">
+    <!-- Authenticatie Kaart -->
     <div class="card" id="auth-card">
       <h1 id="page-title">Tribble Accounts</h1>
       
-      <!-- Tabs om te wisselen -->
       <div class="tabs" id="auth-tabs">
         <button class="tab active" onclick="switchTab('login')">Inloggen</button>
         <button class="tab" onclick="switchTab('register')">Account Maken</button>
@@ -196,18 +211,126 @@
       <div id="message" class="message"></div>
     </div>
 
-    <!-- Dashboard / Welkom scherm als je ingelogd bent -->
+    <!-- Welkom Scherm met 3D Logo -->
     <div class="card hidden" id="welcome-card">
       <div class="welcome-box">
+        <!-- Hier komt het 3D logo canvas -->
+        <div id="logo-container"></div>
         <h1>Welkom, <span id="user-display-name"></span>!</h1>
-        <p>Je bent succesvol ingelogd op Tribble Accounts.</p>
+        <p>Je bent succesvol ingelogd.</p>
         <button class="btn logout-btn" onclick="handleLogout()">Uitloggen</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Functie om te wisselen tussen Inloggen en Registreren tabbladen
+    // --- 1. WEB AUDIO API SYNTHESIZER (Geen MP3 nodig) ---
+    function playSuccessSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Hoofd melodie noten (Arpeggio: C5 -> E5 -> G5 -> C6)
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, index) => {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc.type = 'sine'; // Mooie zuivere toon
+          osc.frequency.value = freq;
+          
+          // Volume envelope (fade-in & fade-out)
+          const startTime = audioCtx.currentTime + (index * 0.08);
+          gainNode.gain.setValueAtTime(0, startTime);
+          gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+          
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc.start(startTime);
+          osc.stop(startTime + 0.3);
+        });
+      } catch (e) {
+        console.log("Audio kon niet worden afgespeeld vanwege browserbeleid.");
+      }
+    }
+
+    // --- 2. 3D LOGO ENGINE (Three.js) ---
+    let scene, camera, renderer, logoGroup, animationId;
+
+    function init3DLogo() {
+      const container = document.getElementById('logo-container');
+      container.innerHTML = ''; // Leegmaken indien al geladen
+
+      // Scene, Camera, Renderer
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+      camera.position.z = 5.5;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(150, 150);
+      container.appendChild(renderer.domElement);
+
+      // Verlichting voor realistische 3D glans
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const pointLight = new THREE.PointLight(0x6366f1, 2, 50);
+      pointLight.position.set(5, 5, 5);
+      scene.add(pointLight);
+
+      const pointLight2 = new THREE.PointLight(0x38bdf8, 1.5, 50);
+      pointLight2.position.set(-5, -5, 5);
+      scene.add(pointLight2);
+
+      // 3D Logo Ontwerp: Een futuristische 'T' (Tribble) opgebouwd uit geometrische vormen
+      logoGroup = new THREE.Group();
+
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0x4f46e5,
+        metalness: 0.8,
+        roughness: 0.2,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1,
+        reflectivity: 1.0
+      });
+
+      // Horizontale balk van de 'T'
+      const topGeo = new THREE.BoxGeometry(2.4, 0.5, 0.5);
+      const topMesh = new THREE.Mesh(topGeo, material);
+      topMesh.position.y = 0.9;
+      logoGroup.add(topMesh);
+
+      // Verticale balk van de 'T'
+      const stemGeo = new THREE.BoxGeometry(0.5, 2.2, 0.5);
+      const stemMesh = new THREE.Mesh(stemGeo, material);
+      stemMesh.position.y = -0.15;
+      logoGroup.add(stemMesh);
+
+      // Een zwevende ring eromheen voor een futuristisch effect
+      const ringGeo = new THREE.TorusGeometry(1.6, 0.04, 16, 100);
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.5 });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = Math.PI / 3;
+      logoGroup.add(ringMesh);
+
+      scene.add(logoGroup);
+
+      // Animatieloop
+      animateLogo();
+    }
+
+    function animateLogo() {
+      animationId = requestAnimationFrame(animateLogo);
+      
+      // Vloeiende rotatie
+      logoGroup.rotation.y += 0.012;
+      logoGroup.rotation.x = Math.sin(Date.now() * 0.002) * 0.2;
+
+      renderer.render(scene, camera);
+    }
+
+    // --- 3. ACCOUNT LOGICA ---
     function switchTab(tab) {
       const loginForm = document.getElementById('login-form');
       const registerForm = document.getElementById('register-form');
@@ -229,18 +352,15 @@
       }
     }
 
-    // Hulpfunctie om gebruikers op te halen als JSON-array
     function getUsers() {
       const usersJson = localStorage.getItem('tribble_users');
       return usersJson ? JSON.parse(usersJson) : [];
     }
 
-    // Hulpfunctie om gebruikers op te slaan als JSON
     function saveUsers(users) {
       localStorage.setItem('tribble_users', JSON.stringify(users, null, 2));
     }
 
-    // Account maken
     function handleRegister(event) {
       event.preventDefault();
       const username = document.getElementById('reg-username').value.trim();
@@ -249,29 +369,22 @@
 
       let users = getUsers();
 
-      // Controleren of de gebruikersnaam al bestaat
-      const existingUser = users.find(u => u.username === username);
-      if (existingUser) {
+      if (users.find(u => u.username === username)) {
         messageDiv.textContent = 'Deze gebruikersnaam bestaat al!';
         messageDiv.className = 'message error';
         return;
       }
 
-      // Nieuwe gebruiker toevoegen aan de lijst
       users.push({ username, password });
       saveUsers(users);
 
       messageDiv.textContent = 'Account succesvol aangemaakt! Je kunt nu inloggen.';
       messageDiv.className = 'message success';
       
-      // Formulier leegmaken
       document.getElementById('register-form').reset();
-      
-      // Na 1.5 seconde automatisch naar de inlogtab gaan
       setTimeout(() => switchTab('login'), 1500);
     }
 
-    // Inloggen
     function handleLogin(event) {
       event.preventDefault();
       const username = document.getElementById('login-username').value.trim();
@@ -279,30 +392,31 @@
       const messageDiv = document.getElementById('message');
 
       let users = getUsers();
-
-      // Zoeken naar de gebruiker
       const user = users.find(u => u.username === username && u.password === password);
 
       if (user) {
-        // Inloggen gelukt
         localStorage.setItem('tribble_current_user', username);
         showWelcomeScreen(username);
+        playSuccessSound(); // Speelt het geluid af via de browser Audio Engine!
       } else {
         messageDiv.textContent = 'Ongeldige gebruikersnaam of wachtwoord.';
         messageDiv.className = 'message error';
       }
     }
 
-    // Welkomstscherm tonen
     function showWelcomeScreen(username) {
       document.getElementById('auth-card').classList.add('hidden');
       document.getElementById('welcome-card').classList.remove('hidden');
       document.getElementById('user-display-name').textContent = username;
+      
+      // Start het 3D logo direct wanneer het scherm zichtbaar wordt
+      setTimeout(init3DLogo, 50);
     }
 
-    // Uitloggen
     function handleLogout() {
       localStorage.removeItem('tribble_current_user');
+      if (animationId) cancelAnimationFrame(animationId);
+      
       document.getElementById('welcome-card').classList.add('hidden');
       document.getElementById('auth-card').classList.remove('hidden');
       document.getElementById('login-form').reset();
@@ -310,7 +424,6 @@
       switchTab('login');
     }
 
-    // Controleren of er al iemand is ingelogd bij het laden van de pagina
     window.onload = function() {
       const currentUser = localStorage.getItem('tribble_current_user');
       if (currentUser) {
